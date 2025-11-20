@@ -34,13 +34,14 @@ end_sf <- tripdata %>%
 cd <- st_read("NYC_Community_Districts.shp") %>%
   st_transform(4326)
 view(cd)
-# community district identifyer is the left column, the number meanings:
+# community district identifier is the left column, the number meanings:
 # 1 - Manhattan
 # 2 - Bronx
 # 3 - Brooklyn
 # 4 - Queens
 # 5 - Staten Island
 # the numbers after that are the district numbers within the boroughs (1-18)
+# See all the community districts here: https://boundaries.beta.nyc/?map=cd
 
 
 cd <- st_read("NYC_Community_Districts.shp") %>%
@@ -130,3 +131,4 @@ chordDiagram(
 )
 
 title("NYC District Bike Trip Flows — Chord Diagram")
+
