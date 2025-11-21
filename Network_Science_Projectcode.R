@@ -22,12 +22,15 @@ tripdata <- janitor::clean_names(tripdata)
 
 
 ### If we want to use every data for the selected month (this is for the latest, 2025 October)
-# tripdata1 <- fread("202510-citibike-tripdata_1.csv")
-# tripdata2 <- fread("202510-citibike-tripdata_2.csv")
-# tripdata3 <- fread("202510-citibike-tripdata_3.csv")
-# tripdata4 <- fread("202510-citibike-tripdata_4.csv")
-# tripdata5 <- fread("202510-citibike-tripdata_5.csv")
-# tripdata <- rbind(tripdata, tripdata2, tripdata3, tripdata4, tripdata5)
+tripdata1 <- fread("202510-citibike-tripdata_1.csv")
+tripdata2 <- fread("202510-citibike-tripdata_2.csv")
+tripdata3 <- fread("202510-citibike-tripdata_3.csv")
+tripdata4 <- fread("202510-citibike-tripdata_4.csv")
+tripdata5 <- fread("202510-citibike-tripdata_5.csv")
+tripdata <- rbind(tripdata, tripdata2, tripdata3, tripdata4, tripdata5)
+
+rm(tripdata2, tripdata3, tripdata4, tripdata5)
+
 
 # Start stations converted to sf points
 start_sf <- tripdata %>%
@@ -37,11 +40,12 @@ start_sf <- tripdata %>%
   st_as_sf(coords = c("start_lng", "start_lat"), crs = 4326) ## Defines the GPS system to be used
                                                               ## lat and longitudes + measures in degrees
 
-### There are duplicates in this (2148 unique stations, but 2158 observations total)
+### There are duplicates in this 
 start_sf %>% 
   distinct(start_station_id) %>% 
   count()
 
+### Getting rid of the duplicates (these may be due to very slight change in the coordinates)
 start_sf<- start_sf %>% 
   distinct(start_station_id, .keep_all = TRUE)
 
@@ -58,8 +62,24 @@ end_sf %>%
   distinct(end_station_id) %>% 
   count()
 
+### Getting rid of the duplicates
 end_sf <- end_sf %>% 
   distinct(end_station_id, .keep_all = TRUE)
+
+################################################################################
+##### Looking at the stations that are in the starting stations but not the ending ones
+##### and vice versa
+################################################################################
+
+starts  <- tripdata %>% distinct(start_station_id) %>% pull(start_station_id)
+ends    <- tripdata %>% distinct(end_station_id)   %>% pull(end_station_id)
+
+only_start <- setdiff(starts, ends)
+
+only_end <- setdiff(ends, starts)
+only_end
+################################################################################
+
 
 
 #### There are more starter stations than ending stations (this can be because we are using only part of the monthly data)
@@ -70,6 +90,11 @@ end_sf <- end_sf %>%
 # getting the community districts
 #--------------------------------
 #(important, must get the shape (.shp)file and not csv or other shit)
+### Keep the file inside the downloaded folder!!!! (otherwise it does not work)
+setwd("/Users/ujvaribotond/Desktop/R/Applied_Network_Science/Project_work")
+
+
+
 cd <- st_read("NYC_Community_Districts_-6420008696060170624/NYC_Community_Districts.shp") %>%
   st_transform(4326)
 view(cd)
@@ -144,12 +169,14 @@ tripdata_cd_weekday <- tripdata_cd %>% filter (Weekday == "Monday" |
 unique(data_weekday$Weekday)
 
 
-tripdata_cd_weekend <- data %>% filter (Weekday == "Saturday" | Weekday == "Sunday")
+tripdata_cd_weekend <- tripdata_cd %>% filter (Weekday == "Saturday" | Weekday == "Sunday")
 
 
 ### Optionally get rid of the original tripdata_cd so that we don't fry our computers
 ### but it might be too late at this point
+rm(tripdata_cd, tripdata)
 ################################################################################
+
 
 
 
@@ -181,7 +208,7 @@ library(tidygraph)
 
 
 # Convert to graph
-g <- graph_from_data_frame(district_network, directed = TRUE)
+# g <- graph_from_data_frame(district_network, directed = TRUE)
 ### same but in a function for the Infomap (has to be directed)
 
 do_the_graph_from_edgelist_Infomap <- function(edgelist_with_weights) {
@@ -192,7 +219,7 @@ do_the_graph_from_edgelist_Infomap <- function(edgelist_with_weights) {
 
 do_the_graph_from_edgelist_Louvain <- function(edgelist_with_weights) {
   graph_from_data_frame(edgelist_with_weights, directed = F)
-  
+}
   
 
   
@@ -225,8 +252,8 @@ do_the_graph_from_edgelist_Louvain <- function(edgelist_with_weights) {
       theme_minimal() +
       labs(
         title = title,
-        edge_width = "trips"
-
+        edge_width = "trips")
+}
 
 
 
@@ -238,6 +265,200 @@ do_the_graph_from_edgelist_Louvain <- function(edgelist_with_weights) {
 ### Adjusted Rand Index (ARI), Normalized Mutual Information (NMI), Variation of Information (VI)
 ### Number of communities, community size distribution, modularity — compare summary stats
 
+################################################################################
+## Compare data specifications inside methods
+################################################################################
+
+####### Louvain #########
+### Had to make sure that all of the community districts are represented
+################################################################################
+  weekday_edgelist_nodes  <- weekday_edgelist %>% distinct(end_BoroCD) %>% pull(end_BoroCD)
+  weekend_edgelist_nodes    <- weekend_edgelist %>% distinct(end_BoroCD)   %>% pull(end_BoroCD)
+  
+  only_start <- setdiff(weekday_edgelist_nodes, weekend_edgelist_nodes)
+  only_start
+  only_end <- setdiff(weekday_edgelist_nodes, weekend_edgelist_nodes)
+  only_end
+  
+  
+  morning_edgelist_nodes  <- morning_edgelist %>% distinct(start_BoroCD) %>% pull(start_BoroCD)
+  evening_edgelist_nodes    <- evening_edgelist %>% distinct(start_BoroCD)   %>% pull(start_BoroCD)
+  
+  only_start <- setdiff(morning_edgelist_nodes, evening_edgelist_nodes)
+  only_start
+  only_end <- setdiff(morning_edgelist_nodes, evening_edgelist_nodes)
+  only_end
+################################################################################
+  
+  
+### Weekdays vs. weekends
+weekday_edgelist <- make_district_network_edgelist(tripdata_cd_weekday)
+  
+weekend_edgelist <- make_district_network_edgelist(tripdata_cd_weekend)
+
+#### Create the undirected graphs for the Louvain method
+weekday_graph_Louvain <- do_the_graph_from_edgelist_Louvain(weekday_edgelist)
+
+weekend_graph_Louvain <- do_the_graph_from_edgelist_Louvain(weekend_edgelist)
+
+#### Run Louvain method on the graphs
+louvain_weekday <- cluster_louvain(weekday_graph_Louvain, weights = E(weekday_graph_Louvain)$weight)
+louvain_weekend <- cluster_louvain(weekend_graph_Louvain, weights = E(weekend_graph_Louvain)$weight)
+
+#### Extract memberships
+nodes <- V(weekday_graph_Louvain)$name  # choose canonical order
+
+mem_louvain_weekday <- membership(louvain_weekday)[nodes]
+mem_louvain_weekend <- membership(louvain_weekend)[nodes]
+
+### Now compare them according to Adjusted Rand Index (ARI), 
+###Normalized Mutual Information (NMI) and Variation of Information (VI)
+
+# ARI
+ari_me <- compare(mem_louvain_weekday, mem_louvain_weekend, method = "adjusted.rand")
+## 0.9024 <- Shows they are quite similar
+
+# NMI
+nmi_me <- compare(mem_louvain_weekday, mem_louvain_weekend, method = "nmi")
+## 0.8566 <- again, showing they are quite similar
+
+# VI
+vi_me  <- compare(mem_louvain_weekday, mem_louvain_weekend, method = "vi")
+## 0.1956 <- since not that close to 0, they do have some differences
+
+
+
+
+#### Mornings vs. evenings (optionally vs.afternoon)
+morning_edgelist <- make_district_network_edgelist(tripdata_cd_morning)
+
+afternoon_edgelist <- make_district_network_edgelist(tripdata_cd_afternoon)
+
+evening_edgelist <- make_district_network_edgelist(tripdata_cd_weekend)
+
+
+#### Create the undirected graphs for the Louvain method
+morning_graph_Louvain <- do_the_graph_from_edgelist_Louvain(morning_edgelist)
+
+afternoon_graph_Louvain <- do_the_graph_from_edgelist_Louvain(afternoon_edgelist)
+
+evening_graph_Louvain <- do_the_graph_from_edgelist_Louvain(evening_edgelist)
+
+#### Run Louvain method on the graphs
+louvain_morning <- cluster_louvain(morning_graph_Louvain, weights = E(morning_graph_Louvain)$weight)
+
+louvain_afternoon <- cluster_louvain(afternoon_graph_Louvain, weights = E(afternoon_graph_Louvain)$weight)
+
+louvain_evening <- cluster_louvain(evening_graph_Louvain, weights = E(evening_graph_Louvain)$weight)
+
+
+#### Extract memberships
+nodes <- V(morning_graph_Louvain)$name  # choose canonical order
+
+mem_louvain_morning <- membership(louvain_morning)[nodes]
+
+mem_louvain_afternoon <- membership(louvain_afternoon)[nodes]
+
+mem_louvain_evening <- membership(louvain_evening)[nodes]
+
+### Now compare them according to Adjusted Rand Index (ARI), 
+###Normalized Mutual Information (NMI) and Variation of Information (VI)
+
+# ARI
+ari_me <- compare(mem_louvain_morning, mem_louvain_afternoon, method = "adjusted.rand")
+## 0.7685 <- Shows they are quite similar, but show some differences
+
+# NMI
+nmi_me <- compare(mem_louvain_morning, mem_louvain_evening, method = "nmi")
+## 0.8192 <- again, showing they are similar
+
+# VI
+vi_me  <- compare(mem_louvain_morning, mem_louvain_evening, method = "vi")
+## 0.2996 <- since not that close to 0, they do have some differences
+
+
+
+################################################################################
+#### INFOMAP (experimental, nem futtattam még le xd)
+################################################################################
+
+### Weekdays vs. weekends
+
+#### Create the undirected graphs for the Louvain method
+weekday_graph_Infomap <- do_the_graph_from_edgelist_Infomap(weekday_edgelist)
+
+weekend_graph_Infomap <- do_the_graph_from_edgelist_Infomap(weekend_edgelist)
+
+#### Run Louvain method on the graphs
+infomap_weekday <- cluster_infomap(weekday_graph_Infomap, weights = E(weekday_graph_Infomap)$weight)
+infomap_weekend <- cluster_infomap(weekend_graph_Infomap, weights = E(weekend_graph_Infomap)$weight)
+
+#### Extract memberships
+nodes <- V(weekday_graph_Infomap)$name  # choose canonical order
+
+mem_infomap_weekday <- membership(infomap_weekday)[nodes]
+mem_infomap_weekend <- membership(infomap_weekend)[nodes]
+
+### Now compare them according to Adjusted Rand Index (ARI), 
+###Normalized Mutual Information (NMI) and Variation of Information (VI)
+
+# ARI
+ari_me <- compare(mem_infomap_weekday, mem_infomap_weekend, method = "adjusted.rand")
+## 0.9024 <- Shows they are quite similar
+
+# NMI
+nmi_me <- compare(mem_infomap_weekday, mem_infomap_weekend, method = "nmi")
+## 0.8566 <- again, showing they are quite similar
+
+# VI
+vi_me  <- compare(mem_infomap_weekday, mem_infomap_weekend, method = "vi")
+## 0.1956 <- since not that close to 0, they do have some differences
+
+
+
+
+
+
+#### Mornings vs. evenings (optionally vs.afternoon)
+
+#### Create the undirected graphs for the Louvain method
+morning_graph_Infomap <- do_the_graph_from_edgelist_Infomap(morning_edgelist)
+
+afternoon_graph_Infomap <- do_the_graph_from_edgelist_Infomap(afternoon_edgelist)
+
+evening_graph_Infomap <- do_the_graph_from_edgelist_Infomap(evening_edgelist)
+
+#### Run Louvain method on the graphs
+infomap_morning <- cluster_infomap(morning_graph_Infomap, weights = E(morning_graph_Infomap)$weight)
+
+infomap_afternoon <- cluster_infomap(afternoon_graph_Infomap, weights = E(afternoon_graph_Infomap)$weight)
+
+infomap_evening <- cluster_infomap(evening_graph_Infomap, weights = E(evening_graph_Infomap)$weight)
+
+
+#### Extract memberships
+nodes <- V(morning_graph_Infomap)$name  # choose canonical order
+
+mem_infomap_morning <- membership(infomap_morning)[nodes]
+
+mem_infomap_afternoon <- membership(infomap_afternoon)[nodes]
+
+mem_infomap_evening <- membership(infomap_evening)[nodes]
+
+### Now compare them according to Adjusted Rand Index (ARI), 
+###Normalized Mutual Information (NMI) and Variation of Information (VI)
+
+# ARI
+ari_me <- compare(mem_infomap_morning, mem_infomap_evening, method = "adjusted.rand")
+## 0.7685 <- Shows they are quite similar, but show some differences
+
+# NMI
+nmi_me <- compare(mem_infomap_morning, mem_infomap_evening, method = "nmi")
+## 0.8192 <- again, showing they are similar
+
+# VI
+vi_me  <- compare(mem_infomap_morning, mem_infomap_evening, method = "vi")
+## 0.2996 <- since not that close to 0, they do have some differences
 
 
 #------------------------------------------------------------------------------
