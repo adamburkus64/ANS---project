@@ -22,7 +22,7 @@ tripdata <- janitor::clean_names(tripdata)
 
 
 ### If we want to use every data for the selected month (this is for the latest, 2025 October)
-tripdata1 <- fread("202510-citibike-tripdata_1.csv")
+tripdata <- fread("202510-citibike-tripdata_1.csv")
 tripdata2 <- fread("202510-citibike-tripdata_2.csv")
 tripdata3 <- fread("202510-citibike-tripdata_3.csv")
 tripdata4 <- fread("202510-citibike-tripdata_4.csv")
@@ -121,7 +121,7 @@ cd <- st_read("NYC_Community_Districts_-6420008696060170624/NYC_Community_Distri
 
 start_join <- st_join(start_sf, cd["BoroCD"], left = TRUE)
 ### There are missing values for the BoroCDs!!!!
-### But this is because parts of NYC, mainly Central Park are not under any boroughs
+### But this is because parts of NYC, mainly because Central Park is not under any boroughs
 
 end_join <- st_join(end_sf, cd["BoroCD"], left = TRUE)
 #-------------------------------------------------------------
@@ -166,10 +166,11 @@ tripdata_cd_weekday <- tripdata_cd %>% filter (Weekday == "Monday" |
                                    Weekday == "Wednesday" |
                                    Weekday == "Thursday" |
                                    Weekday == "Friday")
-unique(data_weekday$Weekday)
+unique(tripdata_cd_weekday$Weekday)
 
 
 tripdata_cd_weekend <- tripdata_cd %>% filter (Weekday == "Saturday" | Weekday == "Sunday")
+unique(tripdata_cd_weekend$Weekday)
 
 
 ### Optionally get rid of the original tripdata_cd so that we don't fry our computers
@@ -187,12 +188,12 @@ rm(tripdata_cd, tripdata)
 ###  filter(!is.na(start_BoroCD), !is.na(end_BoroCD)) %>%
 ###  count(start_BoroCD, end_BoroCD, name = "trips")
 
-### But in a function for every type of dataset
+### But in a function for every type of dataset (((((SOMETHING IS FUCKED ABOUT THIS)))))
 
 make_district_network_edgelist <- function(data) {
   data %>%
     filter(!is.na(start_BoroCD), !is.na(end_BoroCD)) %>%
-    count(start_BoroCD, end_BoroCD, name = "trips")
+    count(start_BoroCD, end_BoroCD, name = "weight")
 }
 
 ### Do every edgelist with weights for all the different specifications
@@ -210,6 +211,7 @@ library(tidygraph)
 # Convert to graph
 # g <- graph_from_data_frame(district_network, directed = TRUE)
 ### same but in a function for the Infomap (has to be directed)
+?graph_from_data_frame
 
 do_the_graph_from_edgelist_Infomap <- function(edgelist_with_weights) {
   graph_from_data_frame(edgelist_with_weights, directed = T)
@@ -270,7 +272,13 @@ do_the_graph_from_edgelist_Louvain <- function(edgelist_with_weights) {
 ################################################################################
 
 ####### Louvain #########
-### Had to make sure that all of the community districts are represented
+  ### Weekdays vs. weekends
+weekday_edgelist <- make_district_network_edgelist(tripdata_cd_weekday)
+  
+weekend_edgelist <- make_district_network_edgelist(tripdata_cd_weekend)
+  
+  
+  ### Had to make sure that all of the community districts are represented
 ################################################################################
   weekday_edgelist_nodes  <- weekday_edgelist %>% distinct(end_BoroCD) %>% pull(end_BoroCD)
   weekend_edgelist_nodes    <- weekend_edgelist %>% distinct(end_BoroCD)   %>% pull(end_BoroCD)
@@ -289,17 +297,17 @@ do_the_graph_from_edgelist_Louvain <- function(edgelist_with_weights) {
   only_end <- setdiff(morning_edgelist_nodes, evening_edgelist_nodes)
   only_end
 ################################################################################
-  
-  
-### Weekdays vs. weekends
-weekday_edgelist <- make_district_network_edgelist(tripdata_cd_weekday)
-  
-weekend_edgelist <- make_district_network_edgelist(tripdata_cd_weekend)
 
 #### Create the undirected graphs for the Louvain method
 weekday_graph_Louvain <- do_the_graph_from_edgelist_Louvain(weekday_edgelist)
 
+### Make sure the weights are indeed for the edges
+E(weekday_graph_Louvain)$weight
+  
+  
 weekend_graph_Louvain <- do_the_graph_from_edgelist_Louvain(weekend_edgelist)
+### Make sure the weights are indeed for the edges
+E(weekday_graph_Louvain)$weight
 
 #### Run Louvain method on the graphs
 louvain_weekday <- cluster_louvain(weekday_graph_Louvain, weights = E(weekday_graph_Louvain)$weight)
@@ -316,15 +324,12 @@ mem_louvain_weekend <- membership(louvain_weekend)[nodes]
 
 # ARI
 ari_me <- compare(mem_louvain_weekday, mem_louvain_weekend, method = "adjusted.rand")
-## 0.9024 <- Shows they are quite similar
 
 # NMI
 nmi_me <- compare(mem_louvain_weekday, mem_louvain_weekend, method = "nmi")
-## 0.8566 <- again, showing they are quite similar
 
 # VI
 vi_me  <- compare(mem_louvain_weekday, mem_louvain_weekend, method = "vi")
-## 0.1956 <- since not that close to 0, they do have some differences
 
 
 
@@ -334,15 +339,21 @@ morning_edgelist <- make_district_network_edgelist(tripdata_cd_morning)
 
 afternoon_edgelist <- make_district_network_edgelist(tripdata_cd_afternoon)
 
-evening_edgelist <- make_district_network_edgelist(tripdata_cd_weekend)
+evening_edgelist <- make_district_network_edgelist(tripdata_cd_evening)
 
 
 #### Create the undirected graphs for the Louvain method
 morning_graph_Louvain <- do_the_graph_from_edgelist_Louvain(morning_edgelist)
+E(morning_graph_Louvain)$weight
+
+
 
 afternoon_graph_Louvain <- do_the_graph_from_edgelist_Louvain(afternoon_edgelist)
 
 evening_graph_Louvain <- do_the_graph_from_edgelist_Louvain(evening_edgelist)
+E(evening_graph_Louvain)$weight
+
+
 
 #### Run Louvain method on the graphs
 louvain_morning <- cluster_louvain(morning_graph_Louvain, weights = E(morning_graph_Louvain)$weight)
@@ -365,36 +376,33 @@ mem_louvain_evening <- membership(louvain_evening)[nodes]
 ###Normalized Mutual Information (NMI) and Variation of Information (VI)
 
 # ARI
-ari_me <- compare(mem_louvain_morning, mem_louvain_afternoon, method = "adjusted.rand")
-## 0.7685 <- Shows they are quite similar, but show some differences
+ari_me <- compare(mem_louvain_morning, mem_louvain_evening, method = "adjusted.rand")
 
 # NMI
 nmi_me <- compare(mem_louvain_morning, mem_louvain_evening, method = "nmi")
-## 0.8192 <- again, showing they are similar
 
 # VI
 vi_me  <- compare(mem_louvain_morning, mem_louvain_evening, method = "vi")
-## 0.2996 <- since not that close to 0, they do have some differences
 
 
 
 ################################################################################
 #### INFOMAP (experimental, nem futtattam még le xd)
 ################################################################################
-
 ### Weekdays vs. weekends
 
-#### Create the undirected graphs for the Louvain method
+#### Create the directed graph for the Infomap method
 weekday_graph_Infomap <- do_the_graph_from_edgelist_Infomap(weekday_edgelist)
 
 weekend_graph_Infomap <- do_the_graph_from_edgelist_Infomap(weekend_edgelist)
 
-#### Run Louvain method on the graphs
-infomap_weekday <- cluster_infomap(weekday_graph_Infomap, weights = E(weekday_graph_Infomap)$weight)
-infomap_weekend <- cluster_infomap(weekend_graph_Infomap, weights = E(weekend_graph_Infomap)$weight)
+#### Run Infomap method on the graphs
+?cluster_infomap
+infomap_weekday <- cluster_infomap(weekday_graph_Infomap, e.weights = E(weekday_graph_Infomap)$weight)
+infomap_weekend <- cluster_infomap(weekend_graph_Infomap, e.weights = E(weekend_graph_Infomap)$weight)
 
 #### Extract memberships
-nodes <- V(weekday_graph_Infomap)$name  # choose canonical order
+nodes <- V(weekday_graph_Louvain)$name  # choose canonical order
 
 mem_infomap_weekday <- membership(infomap_weekday)[nodes]
 mem_infomap_weekend <- membership(infomap_weekend)[nodes]
@@ -404,40 +412,37 @@ mem_infomap_weekend <- membership(infomap_weekend)[nodes]
 
 # ARI
 ari_me <- compare(mem_infomap_weekday, mem_infomap_weekend, method = "adjusted.rand")
-## 0.9024 <- Shows they are quite similar
 
 # NMI
 nmi_me <- compare(mem_infomap_weekday, mem_infomap_weekend, method = "nmi")
-## 0.8566 <- again, showing they are quite similar
 
 # VI
 vi_me  <- compare(mem_infomap_weekday, mem_infomap_weekend, method = "vi")
-## 0.1956 <- since not that close to 0, they do have some differences
 
 
 
 
 
+#### Mornings vs. evenings (optionally vs.afternoon) ((doesn't work yet...))
 
-#### Mornings vs. evenings (optionally vs.afternoon)
-
-#### Create the undirected graphs for the Louvain method
+#### Create the directed graphs for the Infomap method
 morning_graph_Infomap <- do_the_graph_from_edgelist_Infomap(morning_edgelist)
 
 afternoon_graph_Infomap <- do_the_graph_from_edgelist_Infomap(afternoon_edgelist)
 
 evening_graph_Infomap <- do_the_graph_from_edgelist_Infomap(evening_edgelist)
 
-#### Run Louvain method on the graphs
-infomap_morning <- cluster_infomap(morning_graph_Infomap, weights = E(morning_graph_Infomap)$weight)
+#### Run Infomap method on the graphs
+infomap_morning <- cluster_infomap(morning_graph_Infomap, e.weights = E(morning_graph_Infomap)$weight)
 
-infomap_afternoon <- cluster_infomap(afternoon_graph_Infomap, weights = E(afternoon_graph_Infomap)$weight)
+infomap_afternoon <- cluster_infomap(afternoon_graph_Infomap, e.weights = E(afternoon_graph_Infomap)$weight)
 
-infomap_evening <- cluster_infomap(evening_graph_Infomap, weights = E(evening_graph_Infomap)$weight)
+infomap_evening <- cluster_infomap(evening_graph_Infomap, e.weights = E(evening_graph_Infomap)$weight)
 
 
 #### Extract memberships
-nodes <- V(morning_graph_Infomap)$name  # choose canonical order
+
+nodes <- V(morning_graph_Louvain)$name  # choose canonical order
 
 mem_infomap_morning <- membership(infomap_morning)[nodes]
 
@@ -450,15 +455,31 @@ mem_infomap_evening <- membership(infomap_evening)[nodes]
 
 # ARI
 ari_me <- compare(mem_infomap_morning, mem_infomap_evening, method = "adjusted.rand")
-## 0.7685 <- Shows they are quite similar, but show some differences
 
 # NMI
 nmi_me <- compare(mem_infomap_morning, mem_infomap_evening, method = "nmi")
-## 0.8192 <- again, showing they are similar
 
 # VI
 vi_me  <- compare(mem_infomap_morning, mem_infomap_evening, method = "vi")
-## 0.2996 <- since not that close to 0, they do have some differences
+
+
+### Comparing Louvain and Infomap along the same criteria on the same specifications
+### Morning data
+ari_louvain_infomap_morning <- compare(mem_louvain_morning, mem_infomap_morning, method = "adjusted.rand")
+nmi_louvain_infomap_morning <- compare(mem_louvain_morning, mem_infomap_morning, method = "nmi")
+vi_louvain_infomap_morning  <- compare(mem_louvain_morning, mem_infomap_morning, method = "vi")
+
+### Evening data
+ari_louvain_infomap_evening <- compare(mem_louvain_evening, mem_infomap_evening, method = "adjusted.rand")
+nmi_louvain_infomap_evening <- compare(mem_louvain_evening, mem_infomap_evening, method = "nmi")
+vi_louvain_infomap_evening  <- compare(mem_louvain_evening, mem_infomap_evening, method = "vi")
+
+### Weekday data
+ari_louvain_infomap_evening <- compare(mem_louvain_evening, mem_infomap_evening, method = "adjusted.rand")
+nmi_louvain_infomap_evening <- compare(mem_louvain_evening, mem_infomap_evening, method = "nmi")
+vi_louvain_infomap_evening  <- compare(mem_louvain_evening, mem_infomap_evening, method = "vi")
+
+
 
 
 #------------------------------------------------------------------------------
