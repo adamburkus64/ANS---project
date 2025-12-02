@@ -7,11 +7,6 @@
 # UJVÁRI BOTOND, GARAS FÁBIÁN, NAGY ZALÁN ZSOLT, BURKUS ÁDÁM, SZABÓ LEVENTE   ##
 ################################################################################
 
-getwd()
-setwd("C:/Users/User/OneDrive - Corvinus University of Budapest/Dokumentumok/Coding and shi")
-setwd("/Users/ujvaribotond/Desktop/R/Applied_Network_Science/Project_work/202510-citibike-tripdata")
-setwd("/Users/ujvaribotond/Desktop/R/Applied_Network_Science/Project_work")
-
 
 
 ##### PACKAGES NEEDED #####
@@ -301,7 +296,7 @@ loop_ratio_weekend
 ### The ratio of self-loops (indicating in-district rides) are both around 0.38
 
 
-## within the same distric bike flow
+## within the same district bike flow
 intra_weekday <- weekday_edgelist[start_BoroCD == end_BoroCD, sum(weight)]
 ### 1373764 rides within districts during the weekdays
 intra_weekend <- weekend_edgelist[start_BoroCD == end_BoroCD, sum(weight)]
@@ -330,7 +325,7 @@ share_intra_weekday <- intra_weekday / (intra_weekday + inter_weekday)
 share_intra_weekend <- intra_weekend / (intra_weekend + inter_weekend)
 ### around 37.4% of rides during the weekends were within-district rides
 
-### Ratio of rides within districts don't change fo weekdays and weekends
+### Ratio of rides within districts don't change for weekdays and weekends
 
 ## strongest inter district flows
 top_inter_weekday <- weekday_edgelist[start_BoroCD != end_BoroCD][order(-weight)][1:15]
@@ -529,7 +524,7 @@ plot_district_network <- function(g, title, link_color, node_color) {
 
 
 
-########## Shwoing the robustness of Infomap method by implementing Louvain as well
+########## Showing the robustness of Infomap method by implementing Louvain as well
 #### Create the undirected graphs for the Louvain method
 weekday_graph_Louvain <- do_the_graph_from_edgelist_Louvain(weekday_edgelist)
 
@@ -761,6 +756,7 @@ afternoon_graph_Infomap <- do_the_graph_from_edgelist_Infomap(afternoon_edgelist
 evening_graph_Infomap <- do_the_graph_from_edgelist_Infomap(evening_edgelist)
 
 #### Run Infomap method on the graphs
+set.seed(123)
 infomap_morning <- cluster_infomap(morning_graph_Infomap, e.weights = E(morning_graph_Infomap)$weight)
 
 infomap_afternoon <- cluster_infomap(afternoon_graph_Infomap, e.weights = E(afternoon_graph_Infomap)$weight)
@@ -779,7 +775,6 @@ mem_infomap_evening <- membership(infomap_evening)[nodes]
 
 ### Now compare them according to Adjusted Rand Index (ARI), 
 ###Normalized Mutual Information (NMI) and Variation of Information (VI)
-set.seed(123)
 
 
 # ARI
@@ -1525,6 +1520,7 @@ ggplot(nyc_districts_comm) +
     axis.text = element_blank(),
     legend.title = element_text(size = 13),
     legend.text = element_text(size = 12))
+
 
 
 
