@@ -11,6 +11,7 @@ You can access the data we have used on the following link: https://s3.amazonaws
 By clicking the link, it will automatically download the zip file, which contains every ride that was conducted in October, 2025.
 
 In order to identify the community districts, we have used a shapefile (.shp) from the cloud platform of ArcGIS Hub (After clicking on "Download" you are able to download it as "Shapefile"!)
+
 Shapefile link: https://hub.arcgis.com/datasets/DCP::nyc-community-districts/about
 
 
