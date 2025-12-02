@@ -1,4 +1,5 @@
-# ANS---project
+# ANS project ––– New York City CitiBike system analysis
+### Garas Fábián, Nagy Zalán, Szabó Levente, Burkus Ádám, Ujvári Botond
 
 data link: https://s3.amazonaws.com/tripdata/index.html
 
