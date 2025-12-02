@@ -8,6 +8,7 @@ Throughout this research, we are analyzing the community structure of CitiBank, 
 
 
 You can access the data we have used on the following link: https://s3.amazonaws.com/tripdata/202510-citibike-tripdata.zip
+
 By clicking the link, it will automatically download the zip file, which contains every ride that was conducted in October, 2025.
 
 In order to identify the community districts, we have used a shapefile (.shp) from the cloud platform of ArcGIS Hub (After clicking on "Download" you are able to download it as "Shapefile"!)
