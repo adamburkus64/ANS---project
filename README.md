@@ -12,5 +12,5 @@ The code uses the entire 202510 Citibike data and from the community districts z
 
 
 
-word doc: https://docs.google.com/document/d/1cCbldkRb8U3cby3oMKuaT3DjD2IJ1U180nnFLAO4JNU/edit?usp=sharing
+
 
