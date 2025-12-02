@@ -1298,6 +1298,8 @@ print(p_final)
 #ggsave("boro_flows_panel_final.png", p_final, width = 14, height = 7, dpi = 300)
 
 
+
+###### Clear graph on which community belongs where
 ### memberships
 mem_infomap_weekday
 mem_infomap_weekend
@@ -1572,4 +1574,5 @@ ggplot(nyc_districts_comm) +
     axis.text = element_blank(),
     legend.title = element_text(size = 13),
     legend.text = element_text(size = 12))
+
 
